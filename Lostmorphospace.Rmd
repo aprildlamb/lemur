@@ -1,0 +1,97 @@
+---
+title: "Lost morphospace"
+author: "April Lamb"
+date: "5/13/2021"
+output: html_document
+---
+
+Load packages
+```{r pkg, include=FALSE}
+pkgs <- c("phytools", "ape", "geiger", "dplyr", "devtools", "ggplot2", "coda", "diversitree", "nlme", "MCMCglmm", "PBSmapping", "siar", "spatstat", "sp", "rgdal", "rgeos")
+
+vapply(pkgs, library, logical(1), character.only = TRUE, logical.return = TRUE, quietly = TRUE)
+```
+
+Set working directory and load data
+```{r data}
+setwd('C:/Users/april/Desktop/Lemur')
+
+body <- read.csv("Lemurbody.csv") # Body size & traits
+all.data <- read.csv('/Users/april/Desktop/Lemur/Output/allMolars.csv', header=T) # PCA means
+
+# Rename columns 1 of our pca data & merge dataframes
+names(all.data)[1] <- "species"
+data <- merge(body, all.data, by="species")
+```
+
+Calculate the percent morphospace lost for extinct/extant
+```{r status}
+# Split based on Status
+spx <- split(data$V1,body$statuscode)
+spy <- split(data$V2,body$statuscode)
+
+# Now draw convex hulls around your data, subsetting it by extinct, extant, and everything together
+extant <-convexhull(spx[[1]],spy[[1]])
+extant <- c(extant, extant[1])
+all<-convexhull(data$V1,data$V2)
+all <- c(all, all[1])
+extinct<-convexhull(spx[[2]], spy[[2]] )
+extinct <- c(extinct, extinct[1])
+
+# Plot
+plot(all$xcoords, all$ycoords, col="black")
+lines(all$xcoords, all$ycoords, col="black")
+points(extinct$xcoords, extinct$ycoords, col="red")
+lines(extinct$xcoords, extinct$ycoords, col="red")
+points(extant$xcoords, extant$ycoords, col="green")
+lines(extant$xcoords, extant$ycoords, col="green")
+
+# Subtract the area of extant taxa from the area of all taxa to get the area lost
+lostArea<-all$TA-extant$TA 
+lostArea
+
+# Now divide the lostArea by the total area and * 100 to get the percentage of morphospace lost
+print((lostArea/all$TA)*100) # percent lost is ~32%
+```
+
+Just for fun, look at morphospace coverage by habitat type (mixed, wet forest, dry forest)
+```{r habitat}
+# Split based on habitat type
+spx <- split(data$V1,body$habitatcode)
+spy <- split(data$V2,body$habitatcode)
+
+# Now draw convex hulls around your data, subsetting it by habitat type & everything
+all <-convexhull(data$V1,data$V2)
+all <- c(all, all[1])
+mixed <-convexhull(spx[[1]],spy[[1]])
+mixed <- c(mixed, mixed[1])
+wet <-convexhull(spx[[2]], spy[[2]] )
+wet <- c(wet, wet[1])
+dry <-convexhull(spx[[3]], spy[[3]] )
+dry <- c(dry, dry[1])
+
+# Plot
+plot(all$xcoords, all$ycoords, col="black")
+lines(all$xcoords, all$ycoords, col="black")
+points(mixed$xcoords, mixed$ycoords, col="green3")
+lines(mixed$xcoords, mixed$ycoords, col="green3")
+points(wet$xcoords, wet$ycoords, col="blue")
+lines(wet$xcoords, wet$ycoords, col="blue")
+points(dry$xcoords, dry$ycoords, col="gold")
+lines(dry$xcoords, dry$ycoords, col="gold")
+
+# Get percent morphospace coverage for each habitat
+# Mixed
+lostArea <- all$TA-mixed$TA 
+print(100-((lostArea/all$TA)*100)) # mixed forest makes up ~20%
+
+# Wet 
+lostArea <- all$TA-wet$TA
+print(100-((lostArea/all$TA)*100)) # wet forest makes up ~67%
+
+# Dry
+lostArea <- all$TA-dry$TA
+print(100-((lostArea/all$TA)*100)) # dry forest makes up ~12%
+
+```
+

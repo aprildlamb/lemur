@@ -1,0 +1,199 @@
+---
+title: "Chord diagrams"
+author: "April Lamb"
+date: "3/19/2021"
+output: html_document
+---
+
+Set working directory. Note that this will be different for each user.
+```{r setup}
+setwd('C:/Users/april/Desktop/Lemur')
+```
+
+Load libraries and data.
+```{r load}
+# Load libraries
+pkgs <- c("phytools", "ape", "geiger", "dplyr", "tidyr", "devtools", "evobiR", "ggplot2", "circlize", "reshape2")
+vapply(pkgs, library, logical(1), character.only = TRUE, logical.return = TRUE, quietly = TRUE)
+
+# Load data
+tree <- read.tree("C:/Users/april/Desktop/Lemur/Trees/Updated") # tree
+all.data <- read.csv('/Users/april/Desktop/Lemur/Output/allMolars.csv', header=T) # PCA means
+all.traits <- read.csv('/Users/april/Desktop/Lemur/Output/All_molarS_PCA.csv', header=T) # traits
+```
+
+
+Trim tree and data to the format we want
+```{r tree}
+# Plot starting tree
+plotTree(tree)
+
+# Pull out and create list of species
+data_subset<-all.data$V1
+names(data_subset)<-all.data$X
+nc<-name.check(tree, data_subset)
+
+# Drop tree tips that we don't have data for or want to exclude
+tree2 <-drop.tip(tree, nc[[1]])
+species <- "Archaeolemur_edwardsi"
+tree2<-drop.tip(tree2,tree2$tip.label[match(species, tree2$tip.label)])
+plot(tree2)
+
+# Clean up data to only include species that are on the tree
+names(all.data)[names(all.data) == "X"] <- "Species_name" # Rename column 1 so dataframes can be joined
+all.data <- merge(all.data, all.traits[,123:128], by= "Species_name") # Add in traits
+drops <- c("Tooth") # Drop tooth column 
+all.data <- all.data[ , !(names(all.data) %in% drops)]
+all.data <- distinct(all.data) # Remove rows with duplicate data
+all.data = all.data[-2,]
+
+# Make a matrix of habitat type with species as rownames
+x <- as.matrix(all.data[, c("Species_name", "Habitat")])
+row.names(x) <- x[,1] 
+x[14,2] <- "dry_forest"
+x[19,2] <- "dry_forest"
+x[23,2] <- "dry_forest"
+x <- x[,-1]
+
+# reorder matrix to match tree
+ReorderData(tree2, x, taxa.names="row.names")
+
+# plot the tree with habitat types
+dotTree(tree2,x)
+
+```
+
+#### *Models- in increasing order of parameterization*
+
+ER model
+```{r ER}
+fitER<-fitMk(tree2,x,model="ER")
+fitER
+plot(fitER,show.zeros=FALSE)
+as.Qmatrix(fitER)
+
+# matrix of rate
+fitER<-ace(x,tree2,model="ER",type="discrete")
+fitER
+post.ER <- round(fitER$lik.anc,3) # marginal ancestral states
+post.ER
+
+# Plot posterior probabilities on tree
+cols<-setNames(palette()[1:length(unique(x))],sort(unique(x)))
+plotTree(tree2,type = "fan",fsize=0.8,ftype="i")
+nodelabels(node=1:tree2$Nnode+Ntip(tree2),
+    pie=fitER$lik.anc,piecol=cols,cex=0.5)
+tiplabels(pie=to.matrix(x,sort(unique(x))),piecol=cols,cex=0.3)
+add.simmap.legend(colors=cols,prompt=FALSE,x=0.9*par()$usr[1],
+    y=-max(nodeHeights(tree2)),fsize=0.8)
+
+# Stochastic 
+er <- make.simmap(tree2, x, model="ER", nsim=100)
+describe.simmap(er)
+# countSimmap: A list with up to three elements: N is an integer value giving the total number of character changes on the tree; Tr gives the number of of transitions between row and column states (or a matrix containing both N and the transitions between states, in rows, for an object of class "multiPhylo"); and (optionally) message contains an explanatory message about the function output.
+counter <- countSimmap(er)
+counter <- counter$Tr
+head(counter) # check out the raw count results
+counter <- counter[,-1] # remove column of total trasnitions (N)
+counter <- melt(counter) # melt into a long format adjacency list
+counter <- counter %>% separate(Var2, into = c("From", "To"), sep=",")
+counter <- counter[,-1]
+head(counter)
+```
+
+SYM
+```{r sym}
+# SYM
+fitSYM<-fitMk(tree2,x,model="SYM")
+fitSYM
+plot(fitSYM,show.zeros=FALSE)
+as.Qmatrix(fitSYM)
+
+# Posterior probabilities
+fitSYM<-ace(x,tree2,model="SYM",type="discrete")
+fitSYM
+post.SYM <- round(fitSYM$lik.anc,3) # marginal ancestral states
+post.SYM
+
+# Plot posterior probabilities on tree
+cols<-setNames(palette()[1:length(unique(x))],sort(unique(x)))
+plotTree(tree2,type = "fan", fsize=0.8,ftype="i")
+nodelabels(node=1:tree2$Nnode+Ntip(tree2),
+    pie=fitSYM$lik.anc,piecol=cols,cex=0.5)
+tiplabels(pie=to.matrix(x,sort(unique(x))),piecol=cols,cex=0.3)
+add.simmap.legend(colors=cols,prompt=FALSE,x=0.9*par()$usr[1],
+    y=-max(nodeHeights(tree2)),fsize=0.8)
+
+# Stochastic 
+sym <- make.simmap(tree2, x, model="SYM", nsim=100)
+describe.simmap(sym)
+# countSimmap: A list with up to three elements: N is an integer value giving the total number of character changes on the tree; Tr gives the number of of transitions between row and column states (or a matrix containing both N and the transitions between states, in rows, for an object of class "multiPhylo"); and (optionally) message contains an explanatory message about the function output.
+countsym <- countSimmap(sym)
+countsym <- countsym$Tr
+head(countsym) # check out the raw count results
+countsym <- countsym[,-1] # remove column of total trasnitions (N)
+countsym <- melt(countsym) # melt into a long format adjacency list
+countsym <- countsym %>% separate(Var2, into = c("From", "To"), sep=",")
+countsym <- countsym[,-1]
+head(countsym)
+```
+
+ARD
+```{r ard}
+# ARD model
+fitARD<-fitMk(tree2,x,model="ARD")
+fitARD
+plot(fitARD,show.zeros=FALSE)
+as.Qmatrix(fitARD)
+
+# Posterior probabilities
+fitARD<-ace(x,tree2,model="ARD",type="discrete")
+fitARD
+post.ARD <- round(fitARD$lik.anc,3) # marginal ancestral states
+post.ARD
+
+# Plot posterior probabilities on tree
+cols<-setNames(palette()[1:length(unique(x))],sort(unique(x)))
+plotTree(tree2,type = "fan",fsize=0.8,ftype="i")
+nodelabels(node=1:tree2$Nnode+Ntip(tree2),
+    pie=fitARD$lik.anc,piecol=cols,cex=0.5)
+tiplabels(pie=to.matrix(x,sort(unique(x))),piecol=cols,cex=0.3)
+add.simmap.legend(colors=cols,prompt=FALSE,x=0.9*par()$usr[1],
+    y=-max(nodeHeights(tree2)),fsize=0.8)
+
+# Stochastic 
+ard <- make.simmap(tree2, x, model="ARD", nsim=100)
+describe.simmap(ard)
+# countSimmap: A list with up to three elements: N is an integer value giving the total number of character changes on the tree; Tr gives the number of of transitions between row and column states (or a matrix containing both N and the transitions between states, in rows, for an object of class "multiPhylo"); and (optionally) message contains an explanatory message about the function output.
+countard <- countSimmap(ard)
+countard <- countard$Tr 
+head(countard) # check out the raw count results
+countard <- countard[,-1] # remove column of total trasnitions (N)
+countard <- melt(countard) # melt into a long format adjacency list
+countard <- countard %>% separate(Var2, into = c("From", "To"), sep=",") 
+countard <- countard[,-1] 
+head(countard)
+```
+
+#### *Model Comparison*
+
+AICs & Akaike weights
+```{r AIC}
+AIC<-setNames(sapply(list(fitER,fitSYM,
+    fitARD),AIC),c("ER","SYM","ARD"))
+AIC
+aic.w(AIC)
+```
+
+#### *Chord diagrams*
+
+```{r chord}
+
+grid.col= c(dry_forest = "gold", wet_forest = "blue", mixed = "green3")
+circos.par(gap.after = c("dry_forest" = 5, "wet_forest" = 5, "mixed" = 5))
+chordDiagram(counter, grid.col = grid.col)
+chordDiagram(countsym, grid.col = grid.col)
+chordDiagram(countard, grid.col = grid.col)
+
+```
+

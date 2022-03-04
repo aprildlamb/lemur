@@ -1,0 +1,332 @@
+---
+title: "Lemur_Tooth_Shape"
+author: "April Lamb"
+date: "February 9 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### **Set up workspace** 
+
+Set working directory. Note that this will be different for each user. 
+```{r setup} 
+setwd('C:/Users/april/Desktop/Lemur')
+```
+ 
+Load libraries and data.
+```{r load, message=FALSE}
+library(geiger)
+library(devtools)
+library(ggplot2)
+devtools::install_github("MomX/Momocs", build_vignettes=TRUE)
+library(Momocs)
+library(dplyr)
+library(knitr)
+library(gridExtra)
+
+load('/Users/april/Desktop/Lemur/Code/new_landmarked_shapes.RData') # shapefile data
+
+data <- read.csv('/Users/april/Desktop/Lemur/Code/Lemur_KeyII.csv', header=T) # trait data
+```
+
+Source functions needed for analysis
+```{r source}
+source("/Users/april/Desktop/Lemur/Code/Lemur_functions.R")
+```
+
+#### **Aligning shapefiles**
+
+```{r align, warning=FALSE}
+# Combine your series of landmarks into a single landmarked series of objects
+shapes_ldk <- c(shapes1,shapes2,shapes3,shapes4) 
+
+# Use this series of functions to align all of your objects based on where the landmarks are. You might want to change this based on what it looks like.
+aligned <- coo_bookstein(shapes_ldk,1,2)
+aligned <- coo_slide(aligned, ldk=1)
+aligned <- coo_rotate(aligned, (pi/2))
+
+# This is the elliptical fourier analysis. Do this to check the alignment and make sure that everything works
+Axis1F <- efourier(aligned, nb.h=30, norm=F)
+
+
+# PCA on Fourier descriptors
+Axis1D <- PCA(Axis1F)
+plot(Axis1D) 
+```
+
+* At some point you'll want to append this information with your key to the teeth and species. it doesn't matter at which point. Probably you want to do this after you've landmarked everything and save it as a separate datafile.
+* In additon, every momocs shape has a 'fac' component. When you create plots after your fourier analysis, you can color them by the'fac', or in this case your species or tooth type. You first read in your landmarked shapes and then you read in your excel file and then you specify the facs by the excel sheet values (see script below)
+
+#### Elliptical Fourier Analysis 
+
+```{r analysis, warning=FALSE} 
+
+# First, lets make a tooth factor
+tooth <- data$Tooth
+tooth <- factor(tooth)
+aligned$fac$col2 <- tooth
+
+# Now make a species factor
+species <- data$Species_name
+species <- factor(species)
+aligned$fac$col1 <- species
+
+# Take a look at your aligned dataframe:
+head(aligned$fac) # To check the first 6 rows
+tail(aligned$fac) # To check the last 6 rows
+aligned$fac[25:30,] # To check specific rows
+
+# Pull out trait data and make each a factor. Then move these into the fac dataframe in appropriate columns.
+
+# Diet
+diet <- data$Diet 
+diet <- factor(diet)
+aligned$fac$col3 <- diet 
+head(aligned$fac) 
+
+# Habitat
+habitat <- data$Habitat 
+habitat <- factor(habitat)
+aligned$fac$col4 <- habitat
+head(aligned$fac)
+
+# Status 1
+extinctextant <- data$Extinct_Extant
+extinctextant <- factor(extinctextant)
+aligned$fac$col5 <- extinctextant
+head(aligned$fac)
+
+# IUCN
+iucn <- data$IUCN
+iucn <- factor(iucn)
+aligned$fac$col6 <- iucn
+head(aligned$fac)
+
+# Remove all of the outgroups i.e. everything that DOESN'T live in Madagascar and other unwanted species
+rm_out <- Momocs::filter(aligned, !aligned$fac$col1=="Otolemur_monteiri")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Daubentonia_madagascariensis")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Archaeolemur")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Galago_senegalensis")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Hadropithecus")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Lepilemur")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Loris_tardigradus")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Nycticebus")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Nycticebus_coucang")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Nycticebus_javanicus")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Nycticebus_menagensis")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Nycticebus_pygmaeus")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Megaladapis")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Mesopropithecus")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Microcebus")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Otolemur")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Otolemur_crassicaudatus")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Pachylemur_insignis")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Palaeopropithecus")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Palaeopropithecus_kelyus")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Propithecus")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Perodicticus_potto")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Perodicticus_edwardsi")
+rm_out <- Momocs::filter(rm_out, !rm_out$fac$col1=="Prolemur_simus")
+
+# Divide data by tooth type to see if there are any broad differences. Note that for the purposes of this analysis we won't be looking at the tooth comb.
+molar <- Momocs::filter(rm_out, !rm_out$fac$col2 =="TC") # All molars, excluding the tooth combs
+LR_molar <- Momocs::filter(rm_out, rm_out$fac$col2 %in% c("LR")) # lower right molar
+LL_molar <- Momocs::filter(rm_out, rm_out$fac$col2 %in% c("LL")) # lower left molar
+UR_molar <- Momocs::filter(rm_out, rm_out$fac$col2 %in% c("UR")) # upper right molar
+UL_molar <- Momocs::filter(rm_out, rm_out$fac$col2 %in% c("UL")) # upper left molar
+
+# Stack everything in an object and color it by factor 
+stack(molar, fac="col1")
+stack(UR_molar, fac="col1")
+stack(LR_molar, fac="col1")
+stack(UL_molar, fac="col1")
+stack(LL_molar, fac="col1")
+
+# Now perform the elliptical fourier analysis
+UR <- efourier(UR_molar, nb.h=30, norm=F)
+LR <- efourier(LR_molar, nb.h=30, norm=F) 
+LL <- efourier(LL_molar, nb.h=30, norm=F)
+UL <- efourier(UL_molar, nb.h=30, norm=F)
+mol <- efourier(molar, nb.h=30, norm=F)
+
+```
+
+#### **Principal Component Analysis (PCA)** 
+
+```{r PCA, warning=FALSE, results="hide"}
+# Run PCA by tooth type 
+LRpca <- PCA(LR)
+URpca <- PCA(UR)
+LLpca <- PCA(LL)
+ULpca <- PCA(UL)
+molpca <- PCA(mol)
+
+# Get loadings
+# Lower right molar
+LRx <- LRpca$x
+LRx <- as.data.frame(LRpca$x)
+LRx <- tibble::rownames_to_column(LRx, "Photo_ID")
+
+# Lower left molar
+LLx <- LLpca$x
+LLx <- as.data.frame(LLpca$x)
+LLx <- tibble::rownames_to_column(LLx, "Photo_ID")
+
+# Upper right molar
+URx <- URpca$x
+URx <- as.data.frame(URpca$x)
+URx <- tibble::rownames_to_column(URx, "Photo_ID")
+ 
+# Upper left molar
+ULx <- ULpca$x
+ULx <- as.data.frame(ULpca$x)
+ULx <- tibble::rownames_to_column(ULx, "Photo_ID")
+
+# All molars
+molx <- molpca$x
+molx <- as.data.frame(molpca$x)
+molx <- tibble::rownames_to_column(molx, "Photo_ID")
+
+# For some reason there are discrepencies in the photo names between files (???) so we'll quickly fix those here. Otherwise the final PCA files will contain NA's bc they won't join correctly with the trait file.
+# LRx
+LRx1 <- as.data.frame(sapply(LRx[,1], gsub, pattern="-", replacement=".")) # Pull out names col & fix errors
+as.list(LRx1)
+names(LRx1)[1]<-paste("Photo_ID") # Rename column
+LRsub <- subset(LRx, select = -c(Photo_ID)) # Subset original df to exclude wrong names col
+LRx <- cbind(LRx1, LRsub) # Merge correct names column w/ original df
+
+# LLx
+LLx1 <- as.data.frame(sapply(LLx[,1], gsub, pattern="-", replacement=".")) # Pull out names col & fix errors
+as.list(LLx1)
+names(LLx1)[1]<-paste("Photo_ID") # Rename column
+LLsub <- subset(LLx, select = -c(Photo_ID)) # Subset original df to exclude wrong names col
+LLx <- cbind(LLx1, LLsub) # Merge correct names column w/ original df
+
+#URx
+URx1 <- as.data.frame(sapply(URx[,1], gsub, pattern="-", replacement=".")) # Pull out names col & fix errors
+as.list(URx1)
+names(URx1)[1]<-paste("Photo_ID") # Rename column
+URsub <- subset(URx, select = -c(Photo_ID)) # Subset original df to exclude wrong names col
+URx <- cbind(URx1, URsub) # Merge correct names column w/ original df
+
+#ULx
+ULx1 <- as.data.frame(sapply(ULx[,1], gsub, pattern="-", replacement=".")) # Pull out names col & fix errors
+as.list(ULx1)
+names(ULx1)[1]<-paste("Photo_ID") # Rename column
+ULsub <- subset(ULx, select = -c(Photo_ID)) # Subset original df to exclude wrong names col
+ULx <- cbind(ULx1, ULsub) # Merge correct names column w/ original df
+
+# Now add the other factors
+LRx <- left_join(LRx, data)
+LLx <- left_join(LLx, data)
+URx <- left_join(URx, data)
+ULx <- left_join(ULx, data)
+molx <- left_join(molx, data)
+
+# Export PCA results 
+write.csv(LRx, "Lower_right_molar_PCA.csv", quote=F)
+write.csv(LLx, "Lower_left_molar_PCA.csv", quote=F)
+write.csv(URx, "Upper_right_molar_PCA.csv", quote=F)
+write.csv(ULx, "Upper_left_molar_PCA.csv", quote=F)
+write.csv(molx, "All_molars_PCA.csv", quote=F)
+
+# Plot results colored by factor
+# Diet
+# pdf("DietxTeeth.pdf")
+plot(molpca, fac=molpca$fac$col3, ellipses=T, labelgroups=F, title = "molpca x diet") 
+plot(LRpca, fac=LRpca$fac$col3, ellipses=T, labelgroups=F, title = "LRpca x diet") 
+plot(LLpca, fac=LLpca$fac$col3, ellipses=T, labelgroups=F, title = "LLpca x diet") 
+plot(URpca, fac=URpca$fac$col3, ellipses=T, labelgroups=F, title = "URpca x diet") 
+plot(ULpca, fac=ULpca$fac$col3, ellipses=T, labelgroups=F, title = "ULpca x diet") 
+#dev.off()
+
+
+# Habitat
+# pdf("HabitatxTeeth.pdf")
+plot(molpca, fac=molpca$fac$col4, ellipses=T, labelgroups=F, title = "molpca x habitat") 
+plot(LRpca, fac=LRpca$fac$col4, ellipses=T, labelgroups=F, title = "LRpca x habitat") 
+plot(LLpca, fac=LLpca$fac$col4, ellipses=T, labelgroups=F, title = "LLpca x habitat") 
+plot(URpca, fac=URpca$fac$col4, ellipses=T, labelgroups=F, title = "URpca x habitat") 
+plot(ULpca, fac=ULpca$fac$col4, ellipses=T, labelgroups=F, title = "ULpca x habitat") 
+#dev.off()
+
+
+# Status (Extinct v. Extant)
+# pdf("StatusxTeeth.pdf")
+plot(molpca, fac=molpca$fac$col5, ellipses=T, labelgroups=F, title = "molpca x status") 
+plot(LRpca, fac=LRpca$fac$col5, ellipses=T, labelgroups=F, title = "LRpca x status") 
+plot(LLpca, fac=LLpca$fac$col5, ellipses=T, labelgroups=F, title = "LLpca x status") 
+plot(URpca, fac=URpca$fac$col5, ellipses=T, labelgroups=F, title = "URpca x status") 
+plot(ULpca, fac=ULpca$fac$col5, ellipses=T, labelgroups=F, title = "ULpca x status") 
+# dev.off()
+
+# IUCN Status
+#pdf("IUCNxTeeth.pdf")
+plot(molpca, fac=molpca$fac$col6, ellipses=T, labelgroups=F, title = "molpca x IUCN") 
+plot(LRpca, fac=LRpca$fac$col6, ellipses=T, labelgroups=F, title = "LRpca x IUCN") 
+plot(LLpca, fac=LLpca$fac$col6, ellipses=T, labelgroups=F, title = "LLpca x IUCN") 
+plot(URpca, fac=URpca$fac$col6, ellipses=T, labelgroups=F, title = "URpca x IUCN") 
+plot(ULpca, fac=ULpca$fac$col6, ellipses=T, labelgroups=F, title = "ULpca x IUCN") 
+#dev.off()
+
+
+# Get PCA means for each tooth type across species
+# All molars
+targets <- unique(molx$Species_name) # Identify targets
+PC1 <- getMean(targets, molx, axis_column = 2) # get means
+PC2 <- getMean(targets, molx, axis_column = 3)
+PC3 <- getMean(targets, molx, axis_column = 4)
+PC4 <- getMean(targets, molx, axis_column = 5)
+PC5 <- getMean(targets, molx, axis_column = 6)
+AllMolars <- cbind(PC1,PC2,PC3,PC4,PC5) # combine
+write.csv(AllMolars, "allMolars.csv") # export
+
+#Lower right Molar
+targets<-unique(LRx$Species_name) # Identify targets
+PC1 <- getMean(targets, LRx, axis_column = 2) # get means
+PC2 <- getMean(targets, LRx, axis_column = 3)
+PC3 <- getMean(targets, LRx, axis_column = 4)
+PC4 <- getMean(targets, LRx, axis_column = 5)
+PC5 <- getMean(targets, LRx, axis_column = 6)
+lowerRightMolars <- cbind(PC1,PC2,PC3,PC4,PC5) # combine
+write.csv(lowerRightMolars, "lowerRight.csv") # export
+
+# Lower left molar
+targets <- unique(LLx$Species_name) # Identify targets
+PC1 <- getMean(targets, LLx, axis_column = ) # get means
+PC2 <- getMean(targets, LLx, axis_column = 3)
+PC3 <- getMean(targets, LLx, axis_column = 4)
+PC4 <- getMean(targets, LLx, axis_column = 5)
+PC5 <- getMean(targets, LLx, axis_column = 6)
+lowerLeftMolars <- cbind(PC1,PC2,PC3,PC4,PC5) # combine
+write.csv(lowerLeftMolars, "lowerLeft.csv") # export
+
+# Upper right molar
+targets <- unique(URx$Species_name) # Identify targets
+PC1 <- getMean(targets, URx, axis_column = 2) # get means
+PC2 <- getMean(targets, URx, axis_column = 3)
+PC3 <- getMean(targets, URx, axis_column = 4)
+PC4 <- getMean(targets, URx, axis_column = 5)
+PC5 <- getMean(targets, URx, axis_column = 6)
+upperRightMolars <- cbind(PC1,PC2,PC3,PC4,PC5) # combine
+write.csv(upperRightMolars, "upperRight.csv") # export
+
+# Upper left molar
+targets <- unique(ULx$Species_name) # Identify targets
+PC1 <- getMean(targets, ULx, axis_column = 2) # get means
+PC2 <- getMean(targets, ULx, axis_column = 3)
+PC3 <- getMean(targets, ULx, axis_column = 4)
+PC4 <- getMean(targets, ULx, axis_column = 5)
+PC5 <- getMean(targets, ULx, axis_column = 6)
+upperLeftMolars <- cbind(PC1,PC2,PC3,PC4,PC5) # combine
+write.csv(upperLeftMolars, "upperLeft.csv") # export
+```
+
+
+
+
+
+
