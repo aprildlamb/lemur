@@ -1,0 +1,43 @@
+---
+title: "Lemur Disparity"
+author: "April Lamb"
+date: "5/13/2021"
+output: html_document
+---
+
+Set working directory. Note that this will be different for each user.
+```{r setup}
+setwd('C:/Users/april/Desktop/Lemur')
+```
+
+Load libraries.
+```{r load}
+# Load libraries
+pkgs <- c("phytools", "ape", "geiger", "dplyr", "devtools", "ggplot2", "coda", "diversitree", "nlme", "MCMCglmm", "PBSmapping", "siar", "spatstat", "sp", "rgdal", "rgeos")
+
+vapply(pkgs, library, logical(1), character.only = TRUE, logical.return = TRUE, quietly = TRUE)
+```
+
+Load data
+```{r data}
+body <- read.csv("Lemurbody.csv") # Body size, traits, and PC axes 1 & 2
+```
+
+Draw convex hulls
+```{r convex hull}
+
+# Split based on Status
+spx <- split(body$x,body$status)
+spy <- split(body$x,body$status)
+
+
+#now draw convex hulls around your data, subset by extinct, extant, and everything together
+extant<-convexhull(spx[[1]],spy[[1]])
+extant <- c(extant, extant[1])
+all<-convexhull(fruit$x,fruit$y)
+all <- c(all, all[1])
+extinct<-convexhull(spx[[2]], spy[[2]] )
+extinct <- c(extinct, extinct[1])
+
+
+#now plot them so you can see

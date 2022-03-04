@@ -1,0 +1,254 @@
+---
+title: "Lemur_Phylomorphospace"
+author: "April Lamb"
+date: "2/22/2021"
+output: html_document
+---
+
+#### **Set up workspace**
+
+Set working directory. Note that this will be different for each user.
+```{r setup}
+setwd('C:/Users/april/Desktop/Lemur')
+```
+
+Load libraries and data.
+```{r load}
+# Load libraries
+pkgs <- c("phytools", "ape", "geiger", "dplyr", "devtools", "ggplot2")
+
+vapply(pkgs, library, logical(1), character.only = TRUE, logical.return = TRUE,
+       quietly = TRUE)
+
+# Load data
+tree <- read.tree("C:/Users/april/Desktop/Lemur/Trees/Updated") # tree
+
+# PCA means
+all.data <- read.csv('/Users/april/Desktop/Lemur/Output/allMolars.csv', header=T) # PCA means
+UL.data <- read.csv('/Users/april/Desktop/Lemur/Output/upperLeft.csv', header=T) # PCA means
+LL.data <- read.csv('/Users/april/Desktop/Lemur/Output/lowerLeft.csv', header=T) # PCA means
+UR.data <- read.csv('/Users/april/Desktop/Lemur/Output/upperRight.csv', header=T) # PCA means
+LR.data <- read.csv('/Users/april/Desktop/Lemur/Output/lowerRight.csv', header=T) # PCA means
+```
+
+#### **Ancestral state reconstruction**
+
+This part will do an ancestral state reconstruction of the trait from above, we can use this to get the node heights and also subsequently manipulate the object it makes to color the branches. We'll have to repeat this for each tooth type.
+```{r tree}
+# Plot starting tree
+plotTree(tree)
+
+# Pull out and create list of species
+data_subset<-all.data$V1
+names(data_subset)<-all.data$X
+nc<-name.check(tree, data_subset)
+
+# Drop tree tips that we don't have data for
+tree2 <-drop.tip(tree, nc[[1]])  
+plot(tree2)
+
+AA<-contMap(tree2, data_subset)
+H<-nodeHeights(tree2)
+h<-max(H)
+
+# Lets set the colors to a rainbow gradient to color the branches in morphospace by time
+AA$cols[]<-rainbow(1001,start=0.7,end=4/6)
+for(i in 1:nrow(H)) names(AA$tree$maps[[i]])<- round((H[i,1]+cumsum(AA$tree$maps[[i]]))/h*1000)
+plot(AA,legend=FALSE) # should plot by time now
+
+# Set some graphical parameters to make this fit
+mar.default <- c(5,4,4,2) + 0.1
+par(mar = mar.default + c(0, 4, 0, 0)) 
+```
+
+
+#### **Phylomorphospace**
+
+All teeth
+```{r all}
+# PC1 x PC2
+x <- all.data[,c(2,3)] # For the phylomorphospace, we need the PC data as a matrix
+x <- as.matrix(x)
+rownames(x) <- all.data[,1]
+phylomorphospace(AA$tree,x,colors=AA$cols,lwd=3, node.by.map=TRUE, xlab="PC1",ylab="PC2")
+#add.color.bar(0.3,AA$cols,title="time from the root", lims=c(0,h),digits=1) # Click for scale bar
+
+# PC1 x PC3
+x <- all.data[,c(2,4)]
+x <- as.matrix(x)
+rownames(x) <- all.data[,1]
+phylomorphospace(AA$tree,x,colors=AA$cols,lwd=3, node.by.map=TRUE, xlab="PC1",ylab="PC3")
+#add.color.bar(0.3,AA$cols,title="time from the root", lims=c(0,h),digits=1)
+
+# PC2 x PC3
+x <- all.data[,c(3,4)]
+x <- as.matrix(x)
+rownames(x) <- all.data[,1]
+phylomorphospace(AA$tree,x,colors=AA$cols,lwd=3, node.by.map=TRUE, xlab="PC2",ylab="PC3")
+#add.color.bar(0.03,AA$cols,title="time from the root", lims=c(0,h),digits=1)
+```
+
+Lower left
+```{r LL}
+
+# Drops tips and set graphical parameters
+data_subset<-LL.data$V1
+names(data_subset)<-LL.data$X
+nc<-name.check(tree, data_subset)
+tree2 <-drop.tip(tree, nc[[1]])  
+plot(tree2)
+AA<-contMap(tree2, data_subset)
+H<-nodeHeights(tree2)
+h<-max(H)
+AA$cols[]<-rainbow(1001,start=0.7,end=4/6)
+for(i in 1:nrow(H)) names(AA$tree$maps[[i]])<- round((H[i,1]+cumsum(AA$tree$maps[[i]]))/h*1000)
+plot(AA,legend=FALSE) # should plot by time now
+mar.default <- c(5,4,4,2) + 0.1
+par(mar = mar.default + c(0, 4, 0, 0)) 
+
+# PC1 x PC2
+x <- LL.data[,c(2,3)] # For the phylomorphospace, we need the PC data as a matrix
+x <- as.matrix(x)
+rownames(x) <- LL.data[,1]
+phylomorphospace(AA$tree,x,colors=AA$cols,lwd=3, node.by.map=TRUE, xlab="PC1",ylab="PC2")
+#add.color.bar(0.3,AA$cols,title="time from the root", lims=c(0,h),digits=1) # Click for scale bar
+
+# PC1 x PC3
+x <- LL.data[,c(2,4)]
+x <- as.matrix(x)
+rownames(x) <- LL.data[,1]
+phylomorphospace(AA$tree,x,colors=AA$cols,lwd=3, node.by.map=TRUE, xlab="PC1",ylab="PC3")
+#add.color.bar(0.3,AA$cols,title="time from the root", lims=c(0,h),digits=1)
+
+# PC2 x PC3
+x <- LL.data[,c(3,4)]
+x <- as.matrix(x)
+rownames(x) <- LL.data[,1]
+phylomorphospace(AA$tree,x,colors=AA$cols,lwd=3, node.by.map=TRUE, xlab="PC2",ylab="PC3")
+#add.color.bar(0.1,AA$cols,title="time from the root", lims=c(0,h),digits=1)
+```
+
+Upper left
+```{r UL}
+
+# Drops tips and set graphical parameters
+data_subset<-UL.data$V1
+names(data_subset)<-UL.data$X
+nc<-name.check(tree, data_subset)
+tree2 <-drop.tip(tree, nc[[1]])  
+plot(tree2)
+AA<-contMap(tree2, data_subset)
+H<-nodeHeights(tree2)
+h<-max(H)
+AA$cols[]<-rainbow(1001,start=0.7,end=4/6)
+for(i in 1:nrow(H)) names(AA$tree$maps[[i]])<- round((H[i,1]+cumsum(AA$tree$maps[[i]]))/h*1000)
+plot(AA,legend=FALSE) # should plot by time now
+mar.default <- c(5,4,4,2) + 0.1
+par(mar = mar.default + c(0, 4, 0, 0)) 
+
+# PC1 x PC2
+x <- UL.data[,c(2,3)] # For the phylomorphospace, we need the PC data as a matrix
+x <- as.matrix(x)
+rownames(x) <- UL.data[,1]
+phylomorphospace(AA$tree,x,colors=AA$cols,lwd=3, node.by.map=TRUE, xlab="PC1",ylab="PC2")
+#add.color.bar(0.1,AA$cols,title="time from the root", lims=c(0,h),digits=1) # Click for scale bar
+
+# PC1 x PC3
+x <- UL.data[,c(2,4)]
+x <- as.matrix(x)
+rownames(x) <- UL.data[,1]
+phylomorphospace(AA$tree,x,colors=AA$cols,lwd=3, node.by.map=TRUE, xlab="PC1",ylab="PC3")
+#add.color.bar(0.1,AA$cols,title="time from the root", lims=c(0,h),digits=1)
+
+# PC2 x PC3
+x <- UL.data[,c(3,4)]
+x <- as.matrix(x)
+rownames(x) <- UL.data[,1]
+phylomorphospace(AA$tree,x,colors=AA$cols,lwd=3, node.by.map=TRUE, xlab="PC2",ylab="PC3")
+#add.color.bar(0.1,AA$cols,title="time from the root", lims=c(0,h),digits=1)
+
+```
+
+Upper right
+```{r UR}
+# Drops tips and set graphical parameters
+data_subset <- UR.data$V1
+names(data_subset) <- UR.data$X
+nc<-name.check(tree, data_subset)
+tree2 <-drop.tip(tree, nc[[1]])  
+plot(tree2)
+AA<-contMap(tree2, data_subset)
+H<-nodeHeights(tree2)
+h<-max(H)
+AA$cols[]<-rainbow(1001,start=0.7,end=4/6)
+for(i in 1:nrow(H)) names(AA$tree$maps[[i]])<- round((H[i,1]+cumsum(AA$tree$maps[[i]]))/h*1000)
+plot(AA,legend=FALSE) # should plot by time now
+mar.default <- c(5,4,4,2) + 0.1
+par(mar = mar.default + c(0, 4, 0, 0)) 
+
+# PC1 x PC2
+x <- UR.data[,c(2,3)] # For the phylomorphospace, we need the PC data as a matrix
+x <- as.matrix(x)
+rownames(x) <- UR.data[,1]
+phylomorphospace(AA$tree,x,colors=AA$cols,lwd=3, node.by.map=TRUE,xlab="PC1",ylab="PC2")
+#add.color.bar(0.3,AA$cols,title="time from the root",lims=c(0,h),digits=1) 
+
+# PC1 x PC3
+x <- UR.data[,c(2,4)]
+x <- as.matrix(x)
+rownames(x) <- UR.data[,1] 
+phylomorphospace(AA$tree,x,colors=AA$cols,lwd=3, node.by.map=TRUE,  xlab="PC1",ylab="PC3")
+#add.color.bar(0.3,AA$cols,title="time from the root",  lims=c(0,h),digits=1)
+
+# PC2 x PC3
+x <- UR.data[,c(3,4)]
+x <- as.matrix(x)
+rownames(x) <- UR.data[,1]
+phylomorphospace(AA$tree,x,colors=AA$cols,lwd=3, node.by.map=TRUE, xlab="PC2",ylab="PC3")
+#add.color.bar(0.1,AA$cols,title="time from the root", lims=c(0,h),digits=1)
+
+```
+
+
+Lower right
+```{r LR}
+
+# Drops tips and set graphical parameters
+data_subset <- LR.data$V1
+names(data_subset) <- LR.data$X
+nc<-name.check(tree, data_subset)
+tree2 <-drop.tip(tree, nc[[1]])  
+plot(tree2)
+AA<-contMap(tree2, data_subset)
+H<-nodeHeights(tree2)
+h<-max(H)
+AA$cols[]<-rainbow(1001,start=0.7,end=4/6)
+for(i in 1:nrow(H)) names(AA$tree$maps[[i]])<- round((H[i,1]+cumsum(AA$tree$maps[[i]]))/h*1000)
+plot(AA,legend=FALSE) # should plot by time now
+mar.default <- c(5,4,4,2) + 0.1
+par(mar = mar.default + c(0, 4, 0, 0)) 
+
+# PC1 x PC2
+x <- LR.data[,c(2,3)] # For the phylomorphospace, we need the PC data as a matrix
+x <- as.matrix(x)
+rownames(x) <- LR.data[,1]
+phylomorphospace(AA$tree,x,colors=AA$cols,lwd=3, node.by.map=TRUE, xlab="PC1",ylab="PC2")
+#add.color.bar(0.3,AA$cols,title="time from the root", lims=c(0,h),digits=1) # Click for scale bar
+
+# PC1 x PC3
+x <- LR.data[,c(2,4)]
+x <- as.matrix(x)
+rownames(x) <- LR.data[,1]
+phylomorphospace(AA$tree,x,colors=AA$cols,lwd=3, node.by.map=TRUE, xlab="PC1",ylab="PC3")
+#add.color.bar(0.3,AA$cols,title="time from the root", lims=c(0,h),digits=1)
+
+# PC2 x PC3
+x <- LR.data[,c(3,4)]
+x <- as.matrix(x)
+rownames(x) <- LR.data[,1]
+phylomorphospace(AA$tree,x,colors=AA$cols,lwd=3, node.by.map=TRUE, xlab="PC2",ylab="PC3")
+#add.color.bar(0.1,AA$cols,title="time from the root", lims=c(0,h),digits=1)
+
+```
+
+

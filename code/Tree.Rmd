@@ -1,0 +1,111 @@
+---
+title: "Lemur tree"
+author: "April Lamb"
+date: "3/24/2021"
+output: html_document
+---
+
+#### **Set up workspace**
+
+Set working directory. Note that this will be different for each user. 
+```{r setup}
+# Set working directory
+setwd('C:/Users/april/Desktop/Lemur/Trees')
+```
+
+Load in tree and packages.
+```{r load}
+# Load in packages
+library(phytools)
+library(ape)
+library(geiger)
+library(phangorn)
+
+# Set working directory
+setwd('C:/Users/april/Desktop/Lemur/Trees')
+
+# Load in tree
+tree <- read.nexus("MCCFull_FBD.tre") # full tree
+
+# Source fucntions needed
+source("/Users/april/Desktop/Lemur/Code/Lemur_functions.R")
+```
+
+Plot and edit tree to include the species we want.
+```{r tree}
+# Plot starting tree
+plotTree(tree)
+
+# Check if ultrametric, and if not, convert using the next command.
+is.ultrametric(tree)
+ult.nnls<-force.ultrametric(tree) ## default method
+is.ultrametric(ult.nnls)
+
+# Drop everything we don't want
+phy <- drop.tip(ult.nnls, c("Perodicticus_potto",
+                        "Daubentonia_madagascariensis",
+                        "Daubentonia_robustus",
+                        "Arctocebus_calabarensis",
+                        "Loris_tardigradus",
+                        "Nycticebus_bengalensis",
+                        "Nycticebus_menagensis",
+                        "Nycticebus_pygmaeus",
+                        "Nycticebus_coucang",
+                        "Nycticebus_javanicus",
+                        "Galago_thomasi",
+                        "Galagoides_demidoff",
+                        "Galago_moholi",
+                        "Galago_senegalensis",
+                        "Galagoides_zanzibaricus",
+                        "Galago_matschiei",
+                        "Galagoides_cocos",
+                        "Otolemur_garnettii",
+                        "Otolemur_crassicaudatus",
+                        "Euoticus_elegantulus",
+                        "Galago_alleni",
+                        "Komba_robustus",
+                        "Nycticeboides_simpsoni",
+                        "Wadilemur_elegans",
+                        "Karanisia_clarki",
+                        "Saharagalago_misrensis",
+                        "Donrussellia_provincialis",
+                        "Teilhardina_americana",
+                        "Djebelemur_martinezi",
+                        "Altiatlasius_koulchii",
+                        "Allenopithecus_nigroviridis",
+                        "Pan_troglodytes",
+                        "Aotus_trivirgatus",
+                        "Tarsius_syrichta",
+                        "Tarsius_bancanus",
+                        "Saimiri_sciureus",
+                        "Alouatta_seniculus",
+                        "Homo_sapiens",
+                        "Plesiopithecus_teras",
+                        "Aegyptopithecus_zeuxis",
+                        "Branisella_boliviana",
+                        "Pronycticebus_gaudryi",
+                        "Anchomomys_frontanyensis",
+                        "Leptadapis_magnus",
+                        "Adapis_parisiensis",
+                        "Purgatorius_unio",
+                        "Carpolestes_simpsoni",
+                        "Plesiadapis_tricuspidens",
+                        "Cantius_abditus"))
+# write trimmed version to new file
+write.tree(phy, file = "tree_trimmed")
+plot(phy)
+
+# Change incorrect tip labels
+phy$tip.label[phy$tip.label=="Babakotia_radafolia"] <- "Babakotia_radofilai"
+phy
+
+# Create vector of species to add
+species2 <- c("Palaeopropithecus_kelyus","Pachylemur_insignis","Mesopropithecus_globiceps")
+
+# Add species 
+for(i in 1:length(species2)) phy <- add.species.to.genus(phy,species2[i],
+                                                        where="random")
+plotTree(phy, ftype="i")
+write.tree(phy, file = "Updated")
+```
+
